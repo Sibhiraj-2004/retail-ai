@@ -1,30 +1,62 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from app.rag.memory import get_memory
-
-from app.rag.tools.hybrid_search import hybrid_search
+from app.rag.vector_store import get_vector_store
+from sqlalchemy import text
+from app.core.database import engine
 
 
 def create_agent(retriever):
     llm = ChatGoogleGenerativeAI(
-        model="gemini-3.1-flash-lite-preview", 
+        model="gemini-3.1-flash-lite-preview",
         temperature=0.2
     )
 
     memory = get_memory()
 
-    def run(query: str):
-        """
+    
+    def vector_search(query, k=5):
+        vector_store = get_vector_store()
+        retriever = vector_store.as_retriever(search_kwargs={"k": k})
         docs = retriever.invoke(query)
-        context = "\n".join([doc.page_content for doc in docs])
-        """
-        
+        return [doc.page_content for doc in docs]
 
+    
+    def fts_search(query, k=5):
+        sql = text("""
+            SELECT document
+            FROM langchain_pg_embedding
+            WHERE document ILIKE :query
+            LIMIT :k
+        """)
+
+        with engine.connect() as conn:
+            result = conn.execute(sql, {"query": f"%{query}%", "k": k})
+            rows = result.fetchall()
+
+        docs = []
+        for row in rows:
+            docs.append(row[0])
+
+        return docs
+
+   
+    def hybrid_search(query, k=5):
+        vector_docs = vector_search(query, k)
+        fts_docs = fts_search(query, k)
+
+        combined = list(set(vector_docs + fts_docs))
+
+        return combined[:k]
+
+    
+    def run(query: str):
+
+        # Hybrid search
         docs = hybrid_search(query)
 
         context = "\n".join(docs)
-                
-        chat_history = memory.load_memory()
 
+        chat_history = memory.load_memory()
 
         history_text = "\n".join(
             [f"User: {h['user']}\nAssistant: {h['assistant']}" for h in chat_history]
@@ -32,7 +64,8 @@ def create_agent(retriever):
 
         
         prompt = f"""
-       You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
+        
+You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
 
 Your responsibilities:
 - Understand user queries related to finance, investments, banking, and risk.
@@ -73,8 +106,6 @@ Search & Retrieval Awareness:
 13. If search results conflict or are incomplete, acknowledge uncertainty and explain limitations clearly.
 14. Do not assume user intent beyond what is stated or implied in the query and context.
 
-
-
 Chat History:
 {history_text}
 
@@ -85,7 +116,6 @@ Question:
 {query}
 """
 
-        
         response = llm.invoke(prompt)
 
         if isinstance(response.content, list):
