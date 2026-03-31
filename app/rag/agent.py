@@ -1,7 +1,7 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables.history import RunnableWithMessageHistory
-
+from app.schemas.response import QueryResponse
 from app.rag.memory import get_session_history
 from app.rag.vector_store import get_vector_store
 from sqlalchemy import text
@@ -13,7 +13,7 @@ def create_agent(retriever):
 
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.1-flash-lite-preview",
-        temperature=0.2
+        temperature=0.2,
     )
 
     def vector_search(query, k=5):
@@ -43,8 +43,11 @@ def create_agent(retriever):
         combined = list(set(vector_docs + fts_docs))
         return combined[:k]
 
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
 
 Your responsibilities:
 - Understand user queries related to finance, investments, banking, and risk.
@@ -85,9 +88,11 @@ Search & Retrieval Awareness:
 13. If search results conflict or are incomplete, acknowledge uncertainty and explain limitations clearly.
 14. Do not assume user intent beyond what is stated or implied in the query and context.
 
-"""),
-        ("human", "{input}")
-    ])
+""",
+            ),
+            ("human", "{input}"),
+        ]
+    )
 
     def build_input(input_dict):
         query = input_dict["input"]
@@ -105,20 +110,20 @@ Question:
 """
         }
 
-    chain = build_input | prompt | llm
+    structured_llm = llm.with_structured_output(QueryResponse)
+    chain = build_input | prompt | structured_llm
 
     chain_with_memory = RunnableWithMessageHistory(
         chain,
         get_session_history,
         input_messages_key="input",
-        history_messages_key="history"
+        history_messages_key="history",
     )
 
     def run(query: str, session_id: str = "default"):
 
         response = chain_with_memory.invoke(
-            {"input": query},
-            config={"configurable": {"session_id": session_id}}
+            {"input": query}, config={"configurable": {"session_id": session_id}}
         )
 
         if isinstance(response.content, list):
