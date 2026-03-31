@@ -8,7 +8,7 @@ from sqlalchemy import text
 from app.core.database import engine
 import os
 
-os.environ["GOOGLE_API_KEY"]="AIzaSyC8zBeWhq_7Ve9depeuWyPjDipRrqk1d44"
+#os.environ["GOOGLE_API_KEY"]="AIzaSyAD_Kx0qJwIE3asyRjuDjLY_mcnfQ9bqDI"
 
 def create_agent(retriever):
 
@@ -17,9 +17,6 @@ def create_agent(retriever):
         temperature=0.2
     )
 
-    # -------------------------
-    # SEARCH FUNCTIONS
-    # -------------------------
     def vector_search(query, k=5):
         vector_store = get_vector_store()
         retriever = vector_store.as_retriever(search_kwargs={"k": k})
@@ -47,9 +44,6 @@ def create_agent(retriever):
         combined = list(set(vector_docs + fts_docs))
         return combined[:k]
 
-    # -------------------------
-    # PROMPT TEMPLATE
-    # -------------------------
     prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
 
@@ -96,9 +90,6 @@ Search & Retrieval Awareness:
         ("human", "{input}")
     ])
 
-    # -------------------------
-    # RAG CHAIN
-    # -------------------------
     def build_input(input_dict):
         query = input_dict["input"]
 
@@ -117,9 +108,6 @@ Question:
 
     chain = build_input | prompt | llm
 
-    # -------------------------
-    # MEMORY WRAPPER
-    # -------------------------
     chain_with_memory = RunnableWithMessageHistory(
         chain,
         get_session_history,
@@ -127,9 +115,6 @@ Question:
         history_messages_key="history"
     )
 
-    # -------------------------
-    # RUN FUNCTION
-    # -------------------------
     def run(query: str, session_id: str = "default"):
 
         response = chain_with_memory.invoke(
