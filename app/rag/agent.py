@@ -1,26 +1,31 @@
 from langchain_google_genai import ChatGoogleGenerativeAI
-from app.rag.memory import get_memory
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables.history import RunnableWithMessageHistory
+
+from app.rag.memory import get_session_history
 from app.rag.vector_store import get_vector_store
 from sqlalchemy import text
 from app.core.database import engine
+import os
 
+os.environ["GOOGLE_API_KEY"]="AIzaSyC8zBeWhq_7Ve9depeuWyPjDipRrqk1d44"
 
 def create_agent(retriever):
+
     llm = ChatGoogleGenerativeAI(
         model="gemini-3.1-flash-lite-preview",
         temperature=0.2
     )
 
-    memory = get_memory()
-
-    
+    # -------------------------
+    # SEARCH FUNCTIONS
+    # -------------------------
     def vector_search(query, k=5):
         vector_store = get_vector_store()
         retriever = vector_store.as_retriever(search_kwargs={"k": k})
         docs = retriever.invoke(query)
         return [doc.page_content for doc in docs]
 
-    
     def fts_search(query, k=5):
         sql = text("""
             SELECT document
@@ -33,39 +38,20 @@ def create_agent(retriever):
             result = conn.execute(sql, {"query": f"%{query}%", "k": k})
             rows = result.fetchall()
 
-        docs = []
-        for row in rows:
-            docs.append(row[0])
+        return [row[0] for row in rows]
 
-        return docs
-
-   
     def hybrid_search(query, k=5):
         vector_docs = vector_search(query, k)
         fts_docs = fts_search(query, k)
 
         combined = list(set(vector_docs + fts_docs))
-
         return combined[:k]
 
-    
-    def run(query: str):
-
-        # Hybrid search
-        docs = hybrid_search(query)
-
-        context = "\n".join(docs)
-
-        chat_history = memory.load_memory()
-
-        history_text = "\n".join(
-            [f"User: {h['user']}\nAssistant: {h['assistant']}" for h in chat_history]
-        )
-
-        
-        prompt = f"""
-        
-You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
+    # -------------------------
+    # PROMPT TEMPLATE
+    # -------------------------
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
 
 Your responsibilities:
 - Understand user queries related to finance, investments, banking, and risk.
@@ -106,25 +92,54 @@ Search & Retrieval Awareness:
 13. If search results conflict or are incomplete, acknowledge uncertainty and explain limitations clearly.
 14. Do not assume user intent beyond what is stated or implied in the query and context.
 
-Chat History:
-{history_text}
+"""),
+        ("human", "{input}")
+    ])
 
+    # -------------------------
+    # RAG CHAIN
+    # -------------------------
+    def build_input(input_dict):
+        query = input_dict["input"]
+
+        docs = hybrid_search(query)
+        context = "\n".join(docs)
+
+        return {
+            "input": f"""
 Context:
 {context}
 
 Question:
 {query}
 """
+        }
 
-        response = llm.invoke(prompt)
+    chain = build_input | prompt | llm
+
+    # -------------------------
+    # MEMORY WRAPPER
+    # -------------------------
+    chain_with_memory = RunnableWithMessageHistory(
+        chain,
+        get_session_history,
+        input_messages_key="input",
+        history_messages_key="history"
+    )
+
+    # -------------------------
+    # RUN FUNCTION
+    # -------------------------
+    def run(query: str, session_id: str = "default"):
+
+        response = chain_with_memory.invoke(
+            {"input": query},
+            config={"configurable": {"session_id": session_id}}
+        )
 
         if isinstance(response.content, list):
-            output = " ".join([item.get("text", "") for item in response.content])
-        else:
-            output = response.content
+            return " ".join([item.get("text", "") for item in response.content])
 
-        memory.save(query, output)
-
-        return output
+        return response.content
 
     return run

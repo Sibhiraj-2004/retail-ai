@@ -1,16 +1,8 @@
-class SimpleMemory:
-    def __init__(self):
-        self.chat_history = []
+from langchain_core.chat_history import InMemoryChatMessageHistory
 
-    def load_memory(self):
-        return self.chat_history
+store = {}
 
-    def save(self, user_input, output):
-        self.chat_history.append({"user": user_input, "assistant": output})
-
-
-memory = SimpleMemory()
-
-
-def get_memory():
-    return memory
+def get_session_history(session_id: str):
+    if session_id not in store:
+        store[session_id] = InMemoryChatMessageHistory()
+    return store[session_id]
