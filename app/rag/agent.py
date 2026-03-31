@@ -8,7 +8,6 @@ from sqlalchemy import text
 from app.core.database import engine
 import os
 
-#os.environ["GOOGLE_API_KEY"]="AIzaSyAD_Kx0qJwIE3asyRjuDjLY_mcnfQ9bqDI"
 
 def create_agent(retriever):
 
