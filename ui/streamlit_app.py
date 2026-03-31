@@ -98,7 +98,10 @@ elif page == "User":
         try:
             response = requests.post(
                 f"{FASTAPI_URL}/api/v1/query",
-                json={"query": prompt}
+                json={
+                    "query": prompt,
+                    "session_id": st.session_state.current_session
+                }
             )
 
             if response.status_code == 200:

@@ -10,7 +10,7 @@ router = APIRouter()
 async def query_endpoint(request: QueryRequest):
     result=""
     try:
-        result = process_query(request.query)
+        result = process_query(request.query, session_id="default")
     except Exception as e:
         print(e)
         return QueryResponse(response="processing query failed")
