@@ -7,9 +7,11 @@ ENV_PATH = os.path.join(BASE_DIR, ".env")
 
 load_dotenv(dotenv_path=ENV_PATH)
 
+
 class Settings:
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
     DATABASE_URL = os.getenv("DATABASE_URL")
+
 
 settings = Settings()
 

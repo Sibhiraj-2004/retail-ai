@@ -25,17 +25,13 @@ if page == "Admin":
         st.info("Enter password to continue")
 
     elif password == ADMIN_KEY:
-
         uploaded_file = st.file_uploader("Upload PDF/TXT", type=["pdf", "txt"])
 
         if uploaded_file is not None:
             files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
 
             try:
-                response = requests.post(
-                    f"{FASTAPI_URL}/api/v1/upload",
-                    files=files
-                )
+                response = requests.post(f"{FASTAPI_URL}/api/v1/upload", files=files)
 
                 if response.status_code == 200:
                     st.success("✅ File uploaded successfully!")
@@ -74,8 +70,7 @@ elif page == "User":
 
     for sid in st.session_state.sessions:
         if st.sidebar.button(
-            f"Chat {list(st.session_state.sessions).index(sid)+1}",
-            key=sid
+            f"Chat {list(st.session_state.sessions).index(sid) + 1}", key=sid
         ):
             st.session_state.current_session = sid
 
@@ -88,7 +83,6 @@ elif page == "User":
 
     # User input
     if prompt := st.chat_input("Ask your financial question"):
-
         # Save user message
         messages.append({"role": "user", "content": prompt})
 
@@ -97,8 +91,7 @@ elif page == "User":
 
         try:
             response = requests.post(
-                f"{FASTAPI_URL}/api/v1/query",
-                json={"query": prompt}
+                f"{FASTAPI_URL}/api/v1/query", json={"query": prompt}
             )
 
             if response.status_code == 200:
