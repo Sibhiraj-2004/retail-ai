@@ -6,7 +6,7 @@ from app.services.query_service import process_query
 router = APIRouter()
 
 
-@router.post("/query", response_model=QueryResponse)
+@router.post("/query")
 async def query_endpoint(request: QueryRequest):
     result = ""
     try:

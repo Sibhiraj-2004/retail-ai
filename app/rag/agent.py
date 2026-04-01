@@ -121,7 +121,8 @@ Question:
 """
         }
 
-    structured_llm = llm.with_structured_output(QueryResponse)
+    # structured_llm = llm.with_structured_output(QueryResponse)
+    structured_llm = llm
     chain = build_input | prompt | structured_llm
 
     chain_with_memory = RunnableWithMessageHistory(
@@ -133,7 +134,7 @@ Question:
 
     def run(query: str, session_id: str = "default"):
 
-        def safe_invoke(llm, messages, config):
+        def safe_invoke(messages, config):
             for i in range(3):
                 try:
                     response = chain_with_memory.invoke(messages, config=config)
