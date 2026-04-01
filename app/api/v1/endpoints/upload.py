@@ -6,6 +6,7 @@ import time
 
 router = APIRouter()
 
+
 @router.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
     try:
@@ -14,7 +15,7 @@ async def upload_file(file: UploadFile = File(...)):
         file_path = f"data/{timestamp}_{file.filename}"
     except Exception as e:
         print(e)
-        return "building directory failed"    
+        return "building directory failed"
     try:
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
