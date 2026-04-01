@@ -7,6 +7,7 @@ from app.rag.vector_store import get_vector_store
 from sqlalchemy import text
 from app.core.database import engine
 import os
+import time
 
 
 def create_agent(retriever):
@@ -19,7 +20,17 @@ def create_agent(retriever):
     def vector_search(query, k=5):
         vector_store = get_vector_store()
         retriever = vector_store.as_retriever(search_kwargs={"k": k})
-        docs = retriever.invoke(query)
+        def safe_invoke(retriever,query):
+            for i in range(3):
+                try:
+                    docs = retriever.invoke(query)
+                    return docs
+                except Exception as e:
+                    if "429" in str(e):
+                        time.sleep(2**i)
+                    else:
+                        raise e
+        docs = safe_invoke(query=query,retriever=retriever)
         return [doc.page_content for doc in docs]
 
     def fts_search(query, k=5):
@@ -122,8 +133,20 @@ Question:
 
     def run(query: str, session_id: str = "default"):
 
-        response = chain_with_memory.invoke(
-            {"input": query}, config={"configurable": {"session_id": session_id}}
+        def safe_invoke(llm, messages, config):
+            for i in range(3):
+                try:
+                    response = chain_with_memory.invoke(messages, config=config)
+                    return response
+                except Exception as e:
+                    if "429" in str(e):
+                        time.sleep(2**i)
+                    else:
+                        raise e
+
+        response = safe_invoke(
+            messages={"input": query},
+            config={"configurable": {"session_id": session_id}},
         )
 
         if isinstance(response.content, list):
