@@ -8,14 +8,12 @@ from sqlalchemy import text
 from app.core.database import engine
 import os
 
-os.environ["GOOGLE_API_KEY"]="AIzaSyC8zBeWhq_7Ve9depeuWyPjDipRrqk1d44"
+os.environ["GOOGLE_API_KEY"] = "AIzaSyA_lLKoqyQqehIUL3XQ8D1iaXd9TEUKKMU" 
+
 
 def create_agent(retriever):
 
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-3.1-flash-lite-preview",
-        temperature=0.2
-    )
+    llm = ChatGoogleGenerativeAI(model="gemini-3.1-flash-lite-preview", temperature=0.2)
 
     # -------------------------
     # SEARCH FUNCTIONS
@@ -50,8 +48,11 @@ def create_agent(retriever):
     # -------------------------
     # PROMPT TEMPLATE
     # -------------------------
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                """You are an intelligent Financial Advisory Assistant designed to help users make informed financial decisions.
 
 Your responsibilities:
 - Understand user queries related to finance, investments, banking, and risk.
@@ -92,9 +93,11 @@ Search & Retrieval Awareness:
 13. If search results conflict or are incomplete, acknowledge uncertainty and explain limitations clearly.
 14. Do not assume user intent beyond what is stated or implied in the query and context.
 
-"""),
-        ("human", "{input}")
-    ])
+""",
+            ),
+            ("human", "{input}"),
+        ]
+    )
 
     # -------------------------
     # RAG CHAIN
@@ -124,7 +127,7 @@ Question:
         chain,
         get_session_history,
         input_messages_key="input",
-        history_messages_key="history"
+        history_messages_key="history",
     )
 
     # -------------------------
@@ -133,8 +136,7 @@ Question:
     def run(query: str, session_id: str = "default"):
 
         response = chain_with_memory.invoke(
-            {"input": query},
-            config={"configurable": {"session_id": session_id}}
+            {"input": query}, config={"configurable": {"session_id": session_id}}
         )
 
         if isinstance(response.content, list):
